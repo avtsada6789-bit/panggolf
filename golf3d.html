@@ -1,0 +1,130 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>PangGolf Fantasy</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#142a35;color:white;font-family:Arial,sans-serif;overflow:hidden}
+canvas{display:block;width:100vw;height:100dvh;touch-action:none}
+#top{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}
+.pill{background:#102c36df;border:1px solid #ffffff66;border-radius:14px;padding:10px 13px;font-weight:bold}
+#panel{position:fixed;bottom:12px;left:12px;right:12px;display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:8px;align-items:end}
+.box{background:#fff7df;color:#173744;border-radius:17px;padding:10px;border:2px solid white;box-shadow:0 4px #b6d2bd}
+button{border:0;border-radius:12px;background:#ffc94e;color:#263746;font-size:15px;font-weight:bold;padding:13px 6px;margin-top:6px;width:100%;box-shadow:0 3px #d79b2d}
+button:active{transform:translateY(2px);box-shadow:none}
+#hit{background:#ffb92f;font-size:18px;padding:17px 5px}
+#power{height:12px;border-radius:20px;background:#d6e4df;overflow:hidden;margin-top:7px}
+#bar{height:100%;width:40%;background:linear-gradient(90deg,#56c75c,#ffe14b,#f36b48)}
+.small{font-size:12px;color:#526c73}
+@media(min-width:700px){#panel{left:calc(50% - 330px);right:calc(50% - 330px)}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="top">
+ <div class="pill">⛳ PangGolf Fantasy</div>
+ <div class="pill" id="score">หลุม 1 · ตี 0 ครั้ง</div>
+</div>
+<div id="panel">
+ <div class="box">
+  <b>🎯 ทิศทาง</b>
+  <button onclick="aim(-1)">◀ เล็ง</button>
+  <button onclick="aim(1)">เล็ง ▶</button>
+  <button onclick="changeOutfit()">👕 เปลี่ยนชุด</button>
+ </div>
+ <div class="box">
+  <b>⚡ พลังตี</b><div id="power"><div id="bar"></div></div>
+  <button id="hit" onclick="hitBall()">เริ่มเกม / ตีลูก</button>
+  <div class="small" id="msg">เล็งทิศทาง แล้วกดตีลูก</div>
+ </div>
+ <div class="box">
+  <b>🌤 สนามแฟนตาซี</b>
+  <div id="wind">ลม 2 m/s ↗</div>
+  <button onclick="resetGame()">เริ่มใหม่</button>
+ </div>
+</div>
+<script>
+(()=>{
+const c=document.getElementById('game'),ctx=c.getContext('2d');
+const score=document.getElementById('score'),bar=document.getElementById('bar'),msg=document.getElementById('msg');
+let W,H,dpr,turn=0,angle=0,power=40,charging=0,ball={x:0,y:0,z:0},moving=false,shots=0,wind=2;
+let outfits=[
+ {name:'นักเวท',coat:'#7b61c9',hat:'#ffd75e',hair:'#51392c',skin:'#e9ad83'},
+ {name:'อัศวิน',coat:'#3488c8',hat:'#dbeaff',hair:'#51392c',skin:'#e9ad83'},
+ {name:'ภูตดอกไม้',coat:'#f08bb7',hat:'#ffefad',hair:'#7a4934',skin:'#efb991'},
+ {name:'นักผจญภัย',coat:'#cf5548',hat:'#79c76b',hair:'#493025',skin:'#d99b74'}
+],outfit=0;
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',resize);resize();
+function poly(points,color){ctx.fillStyle=color;ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill()}
+function ellipse(x,y,rx,ry,color){ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill()}
+function line(x,y,x2,y2,color,width=2){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke()}
+function drawTree(x,y,s){ellipse(x,y,13*s,7*s,'#438e63');poly([[x-3*s,y-2*s],[x+3*s,y-2*s],[x+4*s,y+14*s],[x-4*s,y+14*s]],'#81533c');ellipse(x,y-12*s,15*s,17*s,'#168b72');ellipse(x-5*s,y-17*s,6*s,7*s,'#2da986')}
+function golfer(x,y){
+ let o=outfits[outfit];
+ ellipse(x,y+17,19,5,'#153b3544');
+ line(x,y-3,x-3,y+12,o.coat,9);line(x-3,y+10,x-10,y+18,'#35485b',5);line(x-3,y+10,x+5,y+18,'#35485b',5);
+ line(x,y,x+10,y+7,o.skin,4);line(x+10,y+7,x+17,y+2,'#b77c58',3);
+ line(x+17,y+2,x+25,y-15,'#4e4c50',2);line(x+22,y-16,x+30,y-14,'#dedede',3);
+ ellipse(x,y-13,8,9,o.skin);
+ ellipse(x-1,y-20,9,4,o.hair);
+ poly([[x-10,y-20],[x+10,y-20],[x+5,y-26],[x-7,y-26]],o.hat);
+ ellipse(x+2,y-12,1,1,'#263238');
+}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ let sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#62c9f5');sky.addColorStop(.48,'#c7f3ef');sky.addColorStop(1,'#7bd69a');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+ ellipse(W*.17,H*.38,W*.42,H*.17,'#8bcca7');ellipse(W*.78,H*.36,W*.48,H*.2,'#74bd91');
+ ellipse(W*.75,H*.25,31,31,'#fff5b7');
+ // perspective fairway
+ poly([[W*.39,H*.98],[W*.62,H*.98],[W*.87,H*.37],[W*.52,H*.37]],'#4eae55');
+ poly([[W*.42,H*.98],[W*.59,H*.98],[W*.81,H*.39],[W*.56,H*.39]],'#81d95f');
+ for(let i=0;i<5;i++){let y=H*(.48+i*.095);let width=W*(.12+i*.025);poly([[W*.66-width/2,y],[W*.66+width/2,y],[W*.66+width*.46,y+H*.04],[W*.66-width*.46,y+H*.04]],i%2?'#8ce16e':'#78d45f')}
+ // pond and trees
+ ellipse(W*.79,H*.65,W*.105,H*.065,'#43c8df');
+ drawTree(W*.13,H*.48,.8);drawTree(W*.28,H*.55,.9);drawTree(W*.85,H*.46,.85);drawTree(W*.65,H*.55,.8);drawTree(W*.46,H*.44,.7);
+ // green
+ ellipse(W*.68,H*.37,W*.105,H*.042,'#399b50');ellipse(W*.68,H*.36,W*.09,H*.034,'#5cc65b');
+ line(W*.68,H*.36,W*.68,H*.30,'white',3);poly([[W*.68,H*.30],[W*.74,H*.315],[W*.68,H*.33]],'#ff526d');
+ ellipse(W*.68,H*.36,5,2,'#183d4a');
+ let bx=ball.x||W*.5,by=ball.y||H*.76;
+ if(!moving&&shots===0){bx=W*.5;by=H*.76}
+ // aiming guide
+ if(!moving){ctx.setLineDash([7,8]);line(bx,by,bx+Math.sin(angle)*W*.27,by-Math.cos(angle)*H*.19,'#ffffffdd',2);ctx.setLineDash([])}
+ ellipse(bx,by+3,17,7,'#ffffff55');ellipse(bx,by,10,10,'#fffdf3');ellipse(bx-3,by-3,3,3,'#d3e1df');ellipse(bx+3,by+2,2,2,'#d3e1df');
+ if(!moving)golfer(bx-28,by+2);
+ if(moving&&ball.z>0){ellipse(bx,by+ball.z+5,6,3,'#ffffff55')}
+ requestAnimationFrame(draw);
+}
+function updateScore(){score.textContent='หลุม 1 · ตี '+shots+' ครั้ง'}
+window.aim=n=>{angle=Math.max(-.9,Math.min(.9,angle+n*.12));msg.textContent='ปรับทิศทางแล้ว'};
+window.changeOutfit=()=>{outfit=(outfit+1)%outfits.length;msg.textContent='ชุด: '+outfits[outfit].name};
+window.hitBall=()=>{
+ if(moving)return;
+ if(shots===0){ball.x=W*.5;ball.y=H*.76}
+ shots++;updateScore();
+ let startX=ball.x||W*.5,startY=ball.y||H*.76;
+ let distance=H*(.15+power/100*.37),dx=Math.sin(angle)*distance;
+ let start=performance.now(),duration=950+power*7;
+ moving=true;msg.textContent='ลูกกำลังลอย!';
+ function fly(now){
+  let t=Math.min(1,(now-start)/duration),ease=1-Math.pow(1-t,1.5);
+  ball.x=startX+dx*ease;ball.y=startY-distance*.43*ease;
+  ball.z=Math.sin(t*Math.PI)*Math.min(110,power*1.5);
+  if(t<1)requestAnimationFrame(fly);
+  else{ball.z=0;ball.y=Math.max(H*.39,Math.min(H*.86,ball.y));moving=false;msg.textContent='ตีสำเร็จ! ปรับทิศทางแล้วตีอีกครั้ง';}
+ }
+ requestAnimationFrame(fly);
+};
+window.resetGame=()=>{shots=0;angle=0;ball={x:W*.5,y:H*.76,z:0};moving=false;updateScore();msg.textContent='เริ่มใหม่แล้ว'};
+let down=false;
+document.getElementById('power').addEventListener('click',()=>{power=power>=90?25:power+15;bar.style.width=power+'%'});
+bar.style.width=power+'%';document.getElementById('wind').textContent='ลม '+wind+' m/s ↗';
+draw();
+})();
+</script>
+</body>
+</html>
