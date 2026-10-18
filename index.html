@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>PangGolf Web Prototype</title>
+<title>PangGolf - Fantasy Outfit Update</title>
 <style>
 :root{--ink:#15324a;--panel:#fff8e8;--accent:#ffcc55}
 *{box-sizing:border-box}
@@ -27,7 +27,10 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 #d69c2e}
 <canvas id="game"></canvas>
 <div class="hud">
   <div class="pill">🏌️ PangGolf · ทดลองเล่น</div>
-  <div class="pill" id="stats">หลุม 1 · ตี 0 ครั้ง</div>
+  <div style="display:flex;gap:6px;align-items:flex-start">
+    <button id="outfit" style="pointer-events:auto;min-height:38px;padding:7px 10px;font-size:12px">🧙 เปลี่ยนชุด</button>
+    <div class="pill" id="stats">หลุม 1 · ตี 0 ครั้ง</div>
+  </div>
 </div>
 <div id="message">เล็งทิศทาง แล้วกด “เริ่มเกจ” จากนั้นกด “ตี!”</div>
 <div class="controls">
@@ -59,6 +62,34 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 #d69c2e}
  function layout(){scale=Math.min(W/390,H/700);tee={x:W*.5,y:H*.68};hole={x:W*.72,y:H*.29};ball={x:tee.x,y:tee.y};}
  function roundedRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
  function path(points,fill){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=fill;ctx.fill();}
+
+ const outfits = [
+   {name:"นักเวท", robe:"#7a55d8", trim:"#ffd85a", hat:"#4c3698", hair:"#513126", skin:"#f1c6a0", icon:"🧙"},
+   {name:"อัศวิน", robe:"#4f91bd", trim:"#e8f3ff", hat:"#a8c7d8", hair:"#573b2c", skin:"#efc29a", icon:"🛡️"},
+   {name:"ภูตดอกไม้", robe:"#f08bb7", trim:"#fff0a8", hat:"#56b875", hair:"#8a4a2d", skin:"#f4c7a8", icon:"🧚"},
+   {name:"นักผจญภัย", robe:"#d49a48", trim:"#6bd0b0", hat:"#3f9b75", hair:"#3b2b23", skin:"#d99a70", icon:"🧢"}
+ ];
+ let outfitIndex=0;
+ function drawGolfer(x,y){
+   const o=outfits[outfitIndex]; ctx.save(); ctx.translate(x,y);
+   ctx.fillStyle="#28765b55";ctx.beginPath();ctx.ellipse(0,5,17,5,0,0,Math.PI*2);ctx.fill();
+   ctx.strokeStyle="#324c69";ctx.lineWidth=5;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(-5,-10);ctx.lineTo(-7,-1);ctx.moveTo(5,-10);ctx.lineTo(7,-1);ctx.stroke();
+   ctx.fillStyle="#fff";ctx.beginPath();ctx.ellipse(-9,0,6,3,0,0,Math.PI*2);ctx.ellipse(8,0,6,3,0,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle=o.robe;ctx.beginPath();ctx.moveTo(-10,-29);ctx.quadraticCurveTo(0,-35,10,-29);ctx.lineTo(14,-11);ctx.quadraticCurveTo(0,-7,-14,-11);ctx.closePath();ctx.fill();
+   ctx.strokeStyle=o.trim;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,-31);ctx.lineTo(0,-12);ctx.stroke();ctx.fillStyle=o.trim;ctx.fillRect(-10,-19,20,3);
+   ctx.strokeStyle=o.skin;ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-9,-27);ctx.lineTo(-15,-17);ctx.moveTo(9,-27);ctx.lineTo(15,-18);ctx.stroke();
+   ctx.strokeStyle="#76543b";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,-18);ctx.lineTo(24,-2);ctx.stroke();ctx.strokeStyle="#d9e6ef";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(21,-3);ctx.lineTo(27,-3);ctx.stroke();
+   ctx.fillStyle=o.skin;ctx.beginPath();ctx.arc(0,-39,10,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(-10,-39,2.5,0,Math.PI*2);ctx.arc(10,-39,2.5,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle=o.hair;ctx.beginPath();ctx.arc(0,-43,10,Math.PI,Math.PI*2);ctx.lineTo(9,-40);ctx.quadraticCurveTo(0,-46,-9,-40);ctx.closePath();ctx.fill();
+   ctx.fillStyle="#29394a";ctx.beginPath();ctx.arc(-3,-39,1.2,0,Math.PI*2);ctx.arc(3,-39,1.2,0,Math.PI*2);ctx.fill();
+   ctx.strokeStyle="#a94f53";ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(0,-36,3,0.15,Math.PI-0.15);ctx.stroke();
+   if(outfitIndex===0){ctx.fillStyle=o.hat;ctx.beginPath();ctx.moveTo(-12,-45);ctx.lineTo(0,-59);ctx.lineTo(12,-45);ctx.closePath();ctx.fill();ctx.fillStyle=o.trim;ctx.beginPath();ctx.arc(0,-52,2,0,Math.PI*2);ctx.fill();}
+   else if(outfitIndex===1){ctx.fillStyle=o.hat;ctx.beginPath();ctx.moveTo(-11,-44);ctx.lineTo(-8,-53);ctx.lineTo(0,-57);ctx.lineTo(8,-53);ctx.lineTo(11,-44);ctx.closePath();ctx.fill();ctx.fillStyle=o.trim;ctx.fillRect(-11,-46,22,3);}
+   else if(outfitIndex===2){ctx.fillStyle=o.hat;ctx.beginPath();ctx.ellipse(-5,-47,6,3,-.4,0,Math.PI*2);ctx.ellipse(5,-47,6,3,.4,0,Math.PI*2);ctx.fill();ctx.fillStyle=o.trim;ctx.beginPath();ctx.arc(0,-47,3,0,Math.PI*2);ctx.fill();}
+   else {ctx.fillStyle=o.hat;ctx.beginPath();ctx.ellipse(0,-46,13,3,0,0,Math.PI*2);ctx.fill();ctx.fillRect(-7,-53,14,7);}
+   ctx.restore();
+ }
+
  function draw(){
   ctx.clearRect(0,0,W,H);
   // sky and distant hills
@@ -84,6 +115,8 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 #d69c2e}
   ctx.fillStyle='#d5f5a5';ctx.beginPath();ctx.ellipse(tee.x,tee.y+5,W*.10,H*.025,0,0,Math.PI*2);ctx.fill();
   // aim line
   if(!flight&&!holed){ctx.save();ctx.setLineDash([5,7]);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ball.x,ball.y);ctx.lineTo(ball.x+Math.sin(angle)*W*.35,ball.y-Math.cos(angle)*H*.35);ctx.stroke();ctx.restore();}
+  // cartoon golfer beside the ball
+  drawGolfer(ball.x-31,ball.y+1);
   // ball shadow and ball
   let bx=ball.x,by=ball.y;
   ctx.fillStyle='#2b7456aa';ctx.beginPath();ctx.ellipse(bx+4,by+5,8,4,0,0,Math.PI*2);ctx.fill();
@@ -130,6 +163,7 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 #d69c2e}
  document.getElementById('left').addEventListener('click',()=>{if(!flight&&!holed){angle-=.12;setMsg('เล็งไปทางซ้ายแล้ว');draw();}});
  document.getElementById('right').addEventListener('click',()=>{if(!flight&&!holed){angle+=.12;setMsg('เล็งไปทางขวาแล้ว');draw();}});
  document.getElementById('reset').addEventListener('click',()=>{charging=false;power=.25;chargeDir=1;shots=0;holed=false;flight=null;layout();swing.textContent='เริ่มเกจ';setMsg('เล็งทิศทาง แล้วกด “เริ่มเกจ” จากนั้นกด “ตี!”');updateUI();draw();});
+ document.getElementById('outfit').addEventListener('click',()=>{outfitIndex=(outfitIndex+1)%outfits.length;document.getElementById('outfit').textContent=outfits[outfitIndex].icon+' '+outfits[outfitIndex].name;setMsg('เปลี่ยนเป็นชุด'+outfits[outfitIndex].name+'แล้ว!');draw();});
  window.addEventListener('resize',resize);
  resize();updateUI();
 })();
