@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>PangGolf Web Prototype</title>
+<style>
+:root{--ink:#15324a;--panel:#fff8e8;--accent:#ffcc55}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:system-ui,-apple-system,sans-serif;background:#9de2ff;color:var(--ink);touch-action:manipulation}
+#game{display:block;width:100vw;height:100dvh}
+.hud{position:fixed;inset:10px 10px auto 10px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}
+.pill{background:#fff8e8eF;border:2px solid #fff;box-shadow:0 3px 0 #236a6a33;border-radius:14px;padding:7px 11px;font-weight:800;font-size:13px}
+#message{position:fixed;left:50%;top:68px;transform:translateX(-50%);background:#fff8e8f2;border:2px solid white;border-radius:14px;padding:9px 14px;font-size:13px;font-weight:700;text-align:center;max-width:90vw;box-shadow:0 3px 0 #236a6a33}
+.controls{position:fixed;left:12px;right:12px;bottom:12px;display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:9px;align-items:end}
+.panel{background:#fff8e8f2;border:2px solid white;border-radius:17px;padding:10px;box-shadow:0 4px 0 #236a6a33}
+button{border:0;border-radius:13px;padding:12px 8px;font-weight:900;font-size:15px;color:#15324a;background:#ffcc55;box-shadow:0 3px 0 #d69c2e;min-height:45px}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 #d69c2e}
+.small{font-size:11px;font-weight:800;margin-bottom:6px}
+#power{height:14px;background:#d7e7e3;border-radius:99px;overflow:hidden;border:1px solid #b4ccc7}
+#bar{height:100%;width:20%;background:linear-gradient(90deg,#49c86d,#ffdf45,#ff765f);border-radius:99px}
+#hint{font-size:11px;line-height:1.35;margin-top:7px}
+@media(min-width:700px){.controls{max-width:760px;left:50%;right:auto;width:calc(100% - 24px);transform:translateX(-50%)}#message{top:74px}.pill{font-size:15px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="hud">
+  <div class="pill">🏌️ PangGolf · ทดลองเล่น</div>
+  <div class="pill" id="stats">หลุม 1 · ตี 0 ครั้ง</div>
+</div>
+<div id="message">เล็งทิศทาง แล้วกด “เริ่มเกจ” จากนั้นกด “ตี!”</div>
+<div class="controls">
+  <div class="panel">
+    <div class="small">🎯 ทิศทาง</div>
+    <button id="left">◀ เล็ง</button>
+    <button id="right">เล็ง ▶</button>
+  </div>
+  <div class="panel">
+    <div class="small">⚡ พลังตี</div>
+    <div id="power"><div id="bar"></div></div>
+    <button id="swing" style="width:100%;margin-top:8px">เริ่มเกจ</button>
+    <div id="hint">กดอีกครั้งเพื่อหยุดเกจและตีลูก</div>
+  </div>
+  <div class="panel">
+    <div class="small">🌬️ สภาพสนาม</div>
+    <div id="wind" style="font-weight:900;font-size:14px;margin-bottom:8px">ลม 2 m/s ↗</div>
+    <button id="reset" style="width:100%">เริ่มใหม่</button>
+  </div>
+</div>
+<script>
+(() => {
+ const canvas=document.getElementById('game'), ctx=canvas.getContext('2d');
+ const bar=document.getElementById('bar'), swing=document.getElementById('swing'), msg=document.getElementById('message');
+ const stats=document.getElementById('stats'), windEl=document.getElementById('wind');
+ let W=0,H=0,dpr=1,angle=-0.35,power=0.25,charging=false,chargeDir=1,shots=0,ball={x:0,y:0},hole={x:0,y:0},flight=null,holed=false;
+ let wind=2,windAngle=0.7,tee={x:0,y:0},scale=1;
+ function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);layout();draw();}
+ function layout(){scale=Math.min(W/390,H/700);tee={x:W*.5,y:H*.68};hole={x:W*.72,y:H*.29};ball={x:tee.x,y:tee.y};}
+ function roundedRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
+ function path(points,fill){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=fill;ctx.fill();}
+ function draw(){
+  ctx.clearRect(0,0,W,H);
+  // sky and distant hills
+  let sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#73d3ff');sky.addColorStop(.5,'#d4f5ff');sky.addColorStop(1,'#b3e8a0');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#7fc9a0';ctx.beginPath();ctx.moveTo(0,H*.30);ctx.quadraticCurveTo(W*.2,H*.15,W*.45,H*.30);ctx.quadraticCurveTo(W*.7,H*.12,W,H*.29);ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.fill();
+  // course fairway as perspective polygon
+  path([[W*.22,H*.88],[W*.79,H*.88],[W*.88,H*.31],[W*.54,H*.25]],'#64c95d');
+  path([[W*.30,H*.84],[W*.70,H*.84],[W*.79,H*.34],[W*.56,H*.29]],'#83dc69');
+  // mowing stripes
+  for(let i=0;i<5;i++){let yy=H*(.38+i*.09);ctx.globalAlpha=.12;path([[W*(.57-i*.035),yy],[W*(.78+i*.015),yy],[W*(.78+(i+1)*.015),yy+H*.045],[W*(.57-(i+1)*.035),yy+H*.045]],'#fff');ctx.globalAlpha=1}
+  // sand bunker
+  ctx.fillStyle='#f7d98b';ctx.beginPath();ctx.ellipse(W*.36,H*.46,W*.075,H*.035,-.2,0,Math.PI*2);ctx.fill();
+  // water hazard
+  ctx.fillStyle='#48c6e5';ctx.beginPath();ctx.ellipse(W*.79,H*.58,W*.10,H*.045,-.2,0,Math.PI*2);ctx.fill();
+  // hole green
+  ctx.fillStyle='#45b84f';ctx.beginPath();ctx.ellipse(hole.x,hole.y,W*.105,H*.043,-.16,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(hole.x+2,hole.y+3,7,3,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#1d4054';ctx.beginPath();ctx.ellipse(hole.x+2,hole.y+3,4,2,0,0,Math.PI*2);ctx.fill();
+  // flag
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(hole.x,hole.y+2);ctx.lineTo(hole.x,hole.y-43);ctx.stroke();
+  path([[hole.x,hole.y-43],[hole.x+24,hole.y-36],[hole.x,hole.y-29]],'#ff5d66');
+  // tee pad
+  ctx.fillStyle='#d5f5a5';ctx.beginPath();ctx.ellipse(tee.x,tee.y+5,W*.10,H*.025,0,0,Math.PI*2);ctx.fill();
+  // aim line
+  if(!flight&&!holed){ctx.save();ctx.setLineDash([5,7]);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ball.x,ball.y);ctx.lineTo(ball.x+Math.sin(angle)*W*.35,ball.y-Math.cos(angle)*H*.35);ctx.stroke();ctx.restore();}
+  // ball shadow and ball
+  let bx=ball.x,by=ball.y;
+  ctx.fillStyle='#2b7456aa';ctx.beginPath();ctx.ellipse(bx+4,by+5,8,4,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(bx,by,7,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#d5e4e6';ctx.lineWidth=1;ctx.stroke();
+  // small dimples
+  ctx.fillStyle='#c8d7df';for(let i=0;i<5;i++){ctx.beginPath();ctx.arc(bx-3+(i%3)*3,by-2+Math.floor(i/3)*3,0.7,0,Math.PI*2);ctx.fill();}
+  // trees
+  for(let i=0;i<5;i++){let tx=W*(.08+i*.19),ty=H*(.32+(i%2)*.06);ctx.fillStyle='#8d623c';ctx.fillRect(tx-3,ty,6,19);ctx.fillStyle=i%2?'#168d70':'#1b9b6a';ctx.beginPath();ctx.arc(tx,ty-4,13,0,Math.PI*2);ctx.fill();}
+  // wind indicator
+  ctx.save();ctx.translate(W-42, H*.19);ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,18,0,Math.PI*2);ctx.stroke();ctx.rotate(windAngle);ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(0,-13);ctx.lineTo(-6,3);ctx.lineTo(0,0);ctx.lineTo(6,3);ctx.closePath();ctx.fill();ctx.restore();
+  // flight arc
+  if(flight){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(flight.sx,flight.sy);ctx.quadraticCurveTo((flight.sx+flight.ex)/2,Math.min(flight.sy,flight.ey)-flight.height,flight.ex,flight.ey);ctx.stroke();ctx.setLineDash([]);}
+ }
+ function updateUI(){bar.style.width=(power*100)+'%';stats.textContent='หลุม 1 · ตี '+shots+' ครั้ง';windEl.textContent='ลม '+wind+' m/s '+(windAngle<0?'↖':'↗');}
+ function setMsg(t){msg.textContent=t;}
+ function animateFlight(ex,ey,height,onDone){
+  flight={sx:ball.x,sy:ball.y,ex,ey,height};
+  const start={x:ball.x,y:ball.y},t0=performance.now(),duration=750+power*550;
+  function frame(now){let t=Math.min(1,(now-t0)/duration),ease=t*t*(3-2*t);ball.x=start.x+(ex-start.x)*ease;ball.y=start.y+(ey-start.y)*ease-Math.sin(t*Math.PI)*height;draw();if(t<1)requestAnimationFrame(frame);else{ball.x=ex;ball.y=ey;flight=null;draw();onDone();}}
+  requestAnimationFrame(frame);
+ }
+ function hit(){
+  if(holed){return}
+  charging=false;swing.textContent='เริ่มเกจ';shots++;
+  let dist=(0.16+power*.43)*H,windX=Math.cos(windAngle)*wind*2.2,windY=-Math.sin(windAngle)*wind*1.2;
+  let ex=ball.x+Math.sin(angle)*dist+windX,ey=ball.y-Math.cos(angle)*dist+windY;
+  ex=Math.max(W*.12,Math.min(W*.88,ex));ey=Math.max(H*.22,Math.min(H*.82,ey));
+  let h=H*(.07+power*.12);
+  setMsg('กำลังตีลูก...');updateUI();
+  animateFlight(ex,ey,h,()=>{
+    let d=Math.hypot(ball.x-hole.x,(ball.y-hole.y)*.75);
+    if(d<22){holed=true;setMsg(shots===1?'HOLE IN ONE! สุดยอด! 🏆':'ลงหลุมแล้ว! 🏆 กดเริ่มใหม่เพื่อเล่นอีกครั้ง');}
+    else if(ball.y<H*.27){setMsg('ลูกไปไกลแล้ว! ปรับทิศทางแล้วตีต่อ');}
+    else {setMsg('ตีแล้ว! ปรับทิศทางด้วยปุ่มเล็ง แล้วเริ่มเกจอีกครั้ง');}
+    updateUI();
+  });
+ }
+ swing.addEventListener('click',()=>{
+  if(flight||holed)return;
+  if(!charging){charging=true;swing.textContent='ตี! หยุดเกจ';setMsg('กด “ตี!” อีกครั้งเพื่อหยุดเกจและตีลูก');let last=performance.now();
+   function tick(now){if(!charging)return;let dt=(now-last)/1000;last=now;power+=chargeDir*dt*0.9;if(power>=1){power=1;chargeDir=-1}if(power<=.12){power=.12;chargeDir=1}updateUI();requestAnimationFrame(tick)}requestAnimationFrame(tick);
+  }else hit();
+ });
+ document.getElementById('left').addEventListener('click',()=>{if(!flight&&!holed){angle-=.12;setMsg('เล็งไปทางซ้ายแล้ว');draw();}});
+ document.getElementById('right').addEventListener('click',()=>{if(!flight&&!holed){angle+=.12;setMsg('เล็งไปทางขวาแล้ว');draw();}});
+ document.getElementById('reset').addEventListener('click',()=>{charging=false;power=.25;chargeDir=1;shots=0;holed=false;flight=null;layout();swing.textContent='เริ่มเกจ';setMsg('เล็งทิศทาง แล้วกด “เริ่มเกจ” จากนั้นกด “ตี!”');updateUI();draw();});
+ window.addEventListener('resize',resize);
+ resize();updateUI();
+})();
+</script>
+</body>
+</html>
