@@ -3,127 +3,222 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>PangGolf Fantasy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>PangGolf 3D</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#142a35;color:white;font-family:Arial,sans-serif;overflow:hidden}
-canvas{display:block;width:100vw;height:100dvh;touch-action:none}
-#top{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}
-.pill{background:#102c36df;border:1px solid #ffffff66;border-radius:14px;padding:10px 13px;font-weight:bold}
-#panel{position:fixed;bottom:12px;left:12px;right:12px;display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:8px;align-items:end}
-.box{background:#fff7df;color:#173744;border-radius:17px;padding:10px;border:2px solid white;box-shadow:0 4px #b6d2bd}
-button{border:0;border-radius:12px;background:#ffc94e;color:#263746;font-size:15px;font-weight:bold;padding:13px 6px;margin-top:6px;width:100%;box-shadow:0 3px #d79b2d}
-button:active{transform:translateY(2px);box-shadow:none}
-#hit{background:#ffb92f;font-size:18px;padding:17px 5px}
-#power{height:12px;border-radius:20px;background:#d6e4df;overflow:hidden;margin-top:7px}
-#bar{height:100%;width:40%;background:linear-gradient(90deg,#56c75c,#ffe14b,#f36b48)}
-.small{font-size:12px;color:#526c73}
-@media(min-width:700px){#panel{left:calc(50% - 330px);right:calc(50% - 330px)}}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,sans-serif;background:#8bd7f0;color:white}
+#game{position:fixed;inset:0}
+canvas{display:block}
+.hud{position:fixed;inset:0;pointer-events:none}
+.top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px}
+.panel{background:#102b34df;border:1px solid #ffffff35;border-radius:12px;padding:10px 13px;box-shadow:0 4px 15px #0003}
+.brand{font-weight:900;font-size:18px}.sub{font-size:10px;color:#c4e9e9;margin-top:3px}
+.stats{font-size:13px;line-height:1.8;text-align:right}.stats b{color:#ffda70}
+.hint{position:absolute;top:85px;left:50%;transform:translateX(-50%);background:#102b34cc;padding:8px 12px;border-radius:20px;font-size:12px;white-space:nowrap}
+#message{position:absolute;top:125px;left:50%;transform:translateX(-50%);font-size:25px;font-weight:900;text-shadow:0 3px 8px #0009;white-space:nowrap}
+.controls{pointer-events:auto;position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:min(760px,calc(100% - 20px));background:#102b34eF;border:1px solid #ffffff35;border-radius:15px;padding:12px;display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:center}
+.label{font-size:12px;color:#c5e3e7;margin-bottom:5px}
+input{width:100%;accent-color:#ffda70}
+.read{display:flex;justify-content:space-between;font-size:12px;margin-top:4px}
+button{border:0;border-radius:10px;padding:12px 15px;font-size:14px;font-weight:bold;background:#ffda70;color:#172b2e;cursor:pointer}
+button.secondary{background:#d6e9e9}
+.actions{display:flex;gap:7px}
+#loading{position:fixed;inset:0;z-index:5;background:#16313a;display:grid;place-items:center;text-align:center;padding:20px}
+#loading.hide{display:none}
+@media(max-width:600px){
+ .top{top:7px;left:7px;right:7px}.panel{padding:8px}.brand{font-size:15px}.stats{font-size:11px}
+ .hint{top:65px;font-size:10px}#message{top:105px;font-size:21px}
+ .controls{bottom:7px;padding:9px;grid-template-columns:1fr 1fr;gap:8px}
+ .actions{grid-column:1/-1}.actions button{flex:1;padding:11px 6px}
+}
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
-<div id="top">
- <div class="pill">⛳ PangGolf Fantasy</div>
- <div class="pill" id="score">หลุม 1 · ตี 0 ครั้ง</div>
-</div>
-<div id="panel">
- <div class="box">
-  <b>🎯 ทิศทาง</b>
-  <button onclick="aim(-1)">◀ เล็ง</button>
-  <button onclick="aim(1)">เล็ง ▶</button>
-  <button onclick="changeOutfit()">👕 เปลี่ยนชุด</button>
+<div id="game"></div>
+<div id="loading"><div><h2>⛳ PangGolf 3D</h2><p>กำลังโหลดเอนจิน 3D...</p><p>ต้องเชื่อมต่ออินเทอร์เน็ต</p></div></div>
+<div class="hud">
+ <div class="top">
+  <div class="panel"><div class="brand">⛳ PangGolf 3D</div><div class="sub">3D GOLF COURSE</div></div>
+  <div class="panel stats">หลุม <b>1</b> · พาร์ <b>3</b><br>จำนวนครั้งที่ตี <b id="shots">0</b><br>ถึงธง <b id="dist">100 m</b></div>
  </div>
- <div class="box">
-  <b>⚡ พลังตี</b><div id="power"><div id="bar"></div></div>
-  <button id="hit" onclick="hitBall()">เริ่มเกม / ตีลูก</button>
-  <div class="small" id="msg">เล็งทิศทาง แล้วกดตีลูก</div>
- </div>
- <div class="box">
-  <b>🌤 สนามแฟนตาซี</b>
-  <div id="wind">ลม 2 m/s ↗</div>
-  <button onclick="resetGame()">เริ่มใหม่</button>
+ <div class="hint">ปรับทิศทางและแรงตี แล้วกดตีลูก</div>
+ <div id="message">READY TO PLAY</div>
+ <div class="controls">
+  <div><div class="label">ทิศทางการตี</div><input id="aim" type="range" min="-50" max="50" value="0"><div class="read"><span>ซ้าย</span><b id="av">0°</b><span>ขวา</span></div></div>
+  <div><div class="label">พลังการตี</div><input id="power" type="range" min="15" max="100" value="65"><div class="read"><span>เบา</span><b id="pv">65%</b><span>แรง</span></div></div>
+  <div class="actions"><button id="hit">ตีลูก ⛳</button><button class="secondary" id="reset">เริ่มใหม่</button></div>
  </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
-(()=>{
-const c=document.getElementById('game'),ctx=c.getContext('2d');
-const score=document.getElementById('score'),bar=document.getElementById('bar'),msg=document.getElementById('msg');
-let W,H,dpr,turn=0,angle=0,power=40,charging=0,ball={x:0,y:0,z:0},moving=false,shots=0,wind=2;
-let outfits=[
- {name:'นักเวท',coat:'#7b61c9',hat:'#ffd75e',hair:'#51392c',skin:'#e9ad83'},
- {name:'อัศวิน',coat:'#3488c8',hat:'#dbeaff',hair:'#51392c',skin:'#e9ad83'},
- {name:'ภูตดอกไม้',coat:'#f08bb7',hat:'#ffefad',hair:'#7a4934',skin:'#efb991'},
- {name:'นักผจญภัย',coat:'#cf5548',hat:'#79c76b',hair:'#493025',skin:'#d99b74'}
-],outfit=0;
-function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
-addEventListener('resize',resize);resize();
-function poly(points,color){ctx.fillStyle=color;ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill()}
-function ellipse(x,y,rx,ry,color){ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill()}
-function line(x,y,x2,y2,color,width=2){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke()}
-function drawTree(x,y,s){ellipse(x,y,13*s,7*s,'#438e63');poly([[x-3*s,y-2*s],[x+3*s,y-2*s],[x+4*s,y+14*s],[x-4*s,y+14*s]],'#81533c');ellipse(x,y-12*s,15*s,17*s,'#168b72');ellipse(x-5*s,y-17*s,6*s,7*s,'#2da986')}
-function golfer(x,y){
- let o=outfits[outfit];
- ellipse(x,y+17,19,5,'#153b3544');
- line(x,y-3,x-3,y+12,o.coat,9);line(x-3,y+10,x-10,y+18,'#35485b',5);line(x-3,y+10,x+5,y+18,'#35485b',5);
- line(x,y,x+10,y+7,o.skin,4);line(x+10,y+7,x+17,y+2,'#b77c58',3);
- line(x+17,y+2,x+25,y-15,'#4e4c50',2);line(x+22,y-16,x+30,y-14,'#dedede',3);
- ellipse(x,y-13,8,9,o.skin);
- ellipse(x-1,y-20,9,4,o.hair);
- poly([[x-10,y-20],[x+10,y-20],[x+5,y-26],[x-7,y-26]],o.hat);
- ellipse(x+2,y-12,1,1,'#263238');
-}
-function draw(){
- ctx.clearRect(0,0,W,H);
- let sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#62c9f5');sky.addColorStop(.48,'#c7f3ef');sky.addColorStop(1,'#7bd69a');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
- ellipse(W*.17,H*.38,W*.42,H*.17,'#8bcca7');ellipse(W*.78,H*.36,W*.48,H*.2,'#74bd91');
- ellipse(W*.75,H*.25,31,31,'#fff5b7');
- // perspective fairway
- poly([[W*.39,H*.98],[W*.62,H*.98],[W*.87,H*.37],[W*.52,H*.37]],'#4eae55');
- poly([[W*.42,H*.98],[W*.59,H*.98],[W*.81,H*.39],[W*.56,H*.39]],'#81d95f');
- for(let i=0;i<5;i++){let y=H*(.48+i*.095);let width=W*(.12+i*.025);poly([[W*.66-width/2,y],[W*.66+width/2,y],[W*.66+width*.46,y+H*.04],[W*.66-width*.46,y+H*.04]],i%2?'#8ce16e':'#78d45f')}
- // pond and trees
- ellipse(W*.79,H*.65,W*.105,H*.065,'#43c8df');
- drawTree(W*.13,H*.48,.8);drawTree(W*.28,H*.55,.9);drawTree(W*.85,H*.46,.85);drawTree(W*.65,H*.55,.8);drawTree(W*.46,H*.44,.7);
- // green
- ellipse(W*.68,H*.37,W*.105,H*.042,'#399b50');ellipse(W*.68,H*.36,W*.09,H*.034,'#5cc65b');
- line(W*.68,H*.36,W*.68,H*.30,'white',3);poly([[W*.68,H*.30],[W*.74,H*.315],[W*.68,H*.33]],'#ff526d');
- ellipse(W*.68,H*.36,5,2,'#183d4a');
- let bx=ball.x||W*.5,by=ball.y||H*.76;
- if(!moving&&shots===0){bx=W*.5;by=H*.76}
- // aiming guide
- if(!moving){ctx.setLineDash([7,8]);line(bx,by,bx+Math.sin(angle)*W*.27,by-Math.cos(angle)*H*.19,'#ffffffdd',2);ctx.setLineDash([])}
- ellipse(bx,by+3,17,7,'#ffffff55');ellipse(bx,by,10,10,'#fffdf3');ellipse(bx-3,by-3,3,3,'#d3e1df');ellipse(bx+3,by+2,2,2,'#d3e1df');
- if(!moving)golfer(bx-28,by+2);
- if(moving&&ball.z>0){ellipse(bx,by+ball.z+5,6,3,'#ffffff55')}
- requestAnimationFrame(draw);
-}
-function updateScore(){score.textContent='หลุม 1 · ตี '+shots+' ครั้ง'}
-window.aim=n=>{angle=Math.max(-.9,Math.min(.9,angle+n*.12));msg.textContent='ปรับทิศทางแล้ว'};
-window.changeOutfit=()=>{outfit=(outfit+1)%outfits.length;msg.textContent='ชุด: '+outfits[outfit].name};
-window.hitBall=()=>{
- if(moving)return;
- if(shots===0){ball.x=W*.5;ball.y=H*.76}
- shots++;updateScore();
- let startX=ball.x||W*.5,startY=ball.y||H*.76;
- let distance=H*(.15+power/100*.37),dx=Math.sin(angle)*distance;
- let start=performance.now(),duration=950+power*7;
- moving=true;msg.textContent='ลูกกำลังลอย!';
- function fly(now){
-  let t=Math.min(1,(now-start)/duration),ease=1-Math.pow(1-t,1.5);
-  ball.x=startX+dx*ease;ball.y=startY-distance*.43*ease;
-  ball.z=Math.sin(t*Math.PI)*Math.min(110,power*1.5);
-  if(t<1)requestAnimationFrame(fly);
-  else{ball.z=0;ball.y=Math.max(H*.39,Math.min(H*.86,ball.y));moving=false;msg.textContent='ตีสำเร็จ! ปรับทิศทางแล้วตีอีกครั้ง';}
+(function(){
+ const loading=document.getElementById('loading');
+ if(!window.THREE){loading.innerHTML='<div><h2>โหลด 3D ไม่สำเร็จ</h2><p>ตรวจอินเทอร์เน็ตแล้วรีเฟรชหน้านี้</p></div>';return}
+ const THREE3=THREE;
+ const scene=new THREE3.Scene();
+ scene.background=new THREE3.Color(0x8bd7f0);
+ scene.fog=new THREE3.Fog(0x8bd7f0,90,190);
+ const camera=new THREE3.PerspectiveCamera(58,innerWidth/innerHeight,.1,400);
+ const renderer=new THREE3.WebGLRenderer({antialias:true});
+ renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
+ renderer.setSize(innerWidth,innerHeight);
+ renderer.shadowMap.enabled=true;
+ renderer.shadowMap.type=THREE3.PCFSoftShadowMap;
+ document.getElementById('game').appendChild(renderer.domElement);
+ scene.add(new THREE3.HemisphereLight(0xe9f9ff,0x537143,2));
+ const sun=new THREE3.DirectionalLight(0xfff0d5,2.5);
+ sun.position.set(-25,45,20);sun.castShadow=true;
+ sun.shadow.mapSize.set(1024,1024);
+ sun.shadow.camera.left=-65;sun.shadow.camera.right=65;
+ sun.shadow.camera.top=75;sun.shadow.camera.bottom=-75;
+ scene.add(sun);
+ function material(c,rough=1){return new THREE3.MeshStandardMaterial({color:c,roughness:rough})}
+ const green=material(0x4d9b43),fair=material(0x79c95c),stripe=material(0x8bd76b);
+ const sand=material(0xe7d18b),water=material(0x38b9d4,.25);
+ const bark=material(0x785039),leaf=material(0x267047),leaf2=material(0x3c8b4c);
+ function add(geo,mat,x,y,z,shadow=true){
+  const o=new THREE3.Mesh(geo,mat);o.position.set(x,y,z);
+  o.castShadow=shadow;o.receiveShadow=true;scene.add(o);return o;
  }
- requestAnimationFrame(fly);
-};
-window.resetGame=()=>{shots=0;angle=0;ball={x:W*.5,y:H*.76,z:0};moving=false;updateScore();msg.textContent='เริ่มใหม่แล้ว'};
-let down=false;
-document.getElementById('power').addEventListener('click',()=>{power=power>=90?25:power+15;bar.style.width=power+'%'});
-bar.style.width=power+'%';document.getElementById('wind').textContent='ลม '+wind+' m/s ↗';
-draw();
+ // Terrain: real 3D mesh with gentle hills
+ const terrain=new THREE3.PlaneGeometry(230,230,80,80);
+ terrain.rotateX(-Math.PI/2);
+ const pos=terrain.attributes.position;
+ for(let i=0;i<pos.count;i++){
+  const x=pos.getX(i),z=pos.getZ(i);
+  pos.setY(i,Math.sin(x*.07)*.5+Math.cos(z*.06)*.55);
+ }
+ terrain.computeVertexNormals();add(terrain,green,0,-.2,0,false);
+ // Fairway and mowing stripes
+ add(new THREE3.BoxGeometry(18,.12,105),fair,0,.1,-45);
+ for(let i=0;i<8;i++){
+  add(new THREE3.BoxGeometry(17,.025,6.5),i%2?stripe:fair,0,.18,-8-i*12,false);
+ }
+ // Hills around the course
+ for(let i=0;i<13;i++){
+  const side=i%2?1:-1;
+  const h=add(new THREE3.SphereGeometry(1,18,12),material(i%2?0x79c49a:0x65ae80),
+   side*(24+Math.random()*20),-1,-12-Math.random()*105,false);
+  h.scale.set(12+Math.random()*10,4+Math.random()*5,14+Math.random()*10);
+ }
+ // Sand bunkers and pond
+ const bunker1=add(new THREE3.SphereGeometry(1,28,18),sand,-10,.13,-40);
+ bunker1.scale.set(5,.23,7);
+ const bunker2=add(new THREE3.SphereGeometry(1,28,18),sand,8,.13,-72);
+ bunker2.scale.set(4,.2,6);
+ const pond=add(new THREE3.CylinderGeometry(7,7,.16,40),water,13,.04,-56);
+ pond.scale.z=1.2;
+ // Low-poly trees
+ function tree(x,z,s){
+  add(new THREE3.CylinderGeometry(.25*s,.4*s,2.5*s,7),bark,x,1.1*s,z);
+  add(new THREE3.ConeGeometry(2*s,4.5*s,8),leaf,x,3.5*s,z);
+  add(new THREE3.ConeGeometry(1.5*s,3.6*s,8),leaf2,x,5.2*s,z);
+ }
+ for(let i=0;i<42;i++){
+  const side=Math.random()<.5?-1:1;
+  tree(side*(13+Math.random()*18),-5-Math.random()*115,.6+Math.random()*.65);
+ }
+ // Putting green and cup
+ const putting=add(new THREE3.CylinderGeometry(9,9,.2,40),material(0x61bb51),0,.18,-96);
+ putting.scale.z=.85;
+ add(new THREE3.CylinderGeometry(.5,.5,.07,20),material(0x172321),0,.32,-96,false);
+ add(new THREE3.CylinderGeometry(.06,.06,5,8),material(0xffffff),0,2.8,-96,false);
+ const flagGeo=new THREE3.BufferGeometry();
+ flagGeo.setAttribute('position',new THREE3.Float32BufferAttribute([0,5,-96,3.1,4.1,-96,0,3.4,-96],3));
+ flagGeo.setIndex([0,1,2]);flagGeo.computeVertexNormals();
+ const flag=new THREE3.Mesh(flagGeo,new THREE3.MeshStandardMaterial({color:0xff4358,side:THREE3.DoubleSide}));
+ scene.add(flag);
+ // Ball and tee
+ const ball=add(new THREE3.SphereGeometry(.48,24,18),material(0xffffff,.35),0,.55,0);
+ const ballMark=add(new THREE3.CylinderGeometry(.7,.7,.04,20),material(0x9bd66d),0,.04,0,false);
+ add(new THREE3.CylinderGeometry(.09,.15,.3,10),material(0xffe2a4),0,.14,.7,false);
+ // Golfer made from 3D meshes
+ const golfer=new THREE3.Group();scene.add(golfer);golfer.position.set(-2,0,2);
+ function part(g,m,x,y,z){const o=new THREE3.Mesh(g,m);o.position.set(x,y,z);o.castShadow=true;golfer.add(o);return o}
+ part(new THREE3.CapsuleGeometry(.42,.8,4,8),material(0x2258a5),0,1.45,0);
+ part(new THREE3.SphereGeometry(.34,16,12),material(0xf1bd91),0,2.35,0);
+ part(new THREE3.CylinderGeometry(.36,.36,.13,16),material(0xffd166),0,2.65,0);
+ part(new THREE3.CylinderGeometry(.1,.12,.9,8),material(0xf1bd91),.45,1.5,-.1).rotation.z=-.5;
+ const club=part(new THREE3.CylinderGeometry(.035,.045,2.2,8),material(0xc8d2d8),.8,1,-.1);
+ club.rotation.z=-.55;
+ part(new THREE3.BoxGeometry(.45,.15,.2),material(0x28353b),1.35,.1,-.1);
+ // Controls and golf shot physics
+ let shots=0,moving=false,velocity=new THREE3.Vector3(),stopped=false;
+ const aim=document.getElementById('aim'),power=document.getElementById('power');
+ const message=document.getElementById('message');
+ aim.oninput=()=>document.getElementById('av').textContent=aim.value+'°';
+ power.oninput=()=>document.getElementById('pv').textContent=power.value+'%';
+ function hit(){
+  if(moving)return;
+  shots++;document.getElementById('shots').textContent=shots;
+  const a=Number(aim.value)*Math.PI/180,p=Number(power.value)/100;
+  velocity.set(Math.sin(a)*(12+p*24),6+p*13,-(20+p*39));
+  moving=true;stopped=false;message.textContent='NICE SHOT!';
+  golfer.rotation.y=a;club.rotation.x=-.6;
+ }
+ function reset(){
+  shots=0;moving=false;stopped=false;velocity.set(0,0,0);
+  ball.position.set(0,.55,0);ballMark.position.set(0,.04,0);
+  golfer.position.set(-2,0,2);golfer.rotation.set(0,0,0);
+  club.rotation.set(0,0,-.55);
+  document.getElementById('shots').textContent='0';
+  document.getElementById('dist').textContent='100 m';
+  message.textContent='READY TO PLAY';
+ }
+ document.getElementById('hit').onclick=hit;
+ document.getElementById('reset').onclick=reset;
+ // Keyboard controls for PC
+ addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();hit()}
+  if(e.key==='ArrowLeft')aim.value=Math.max(-50,+aim.value-3);
+  if(e.key==='ArrowRight')aim.value=Math.min(50,+aim.value+3);
+  if(e.key==='ArrowUp')power.value=Math.min(100,+power.value+5);
+  if(e.key==='ArrowDown')power.value=Math.max(15,+power.value-5);
+  aim.dispatchEvent(new Event('input'));power.dispatchEvent(new Event('input'));
+ });
+ // Drag across the 3D view to adjust aim
+ let drag=false,lastX=0;
+ renderer.domElement.addEventListener('pointerdown',e=>{drag=true;lastX=e.clientX});
+ addEventListener('pointerup',()=>drag=false);
+ renderer.domElement.addEventListener('pointermove',e=>{
+  if(drag&&e.buttons){aim.value=Math.max(-50,Math.min(50,+aim.value+(e.clientX-lastX)*.15));lastX=e.clientX;aim.dispatchEvent(new Event('input'))}
+ });
+ const clock=new THREE3.Clock();
+ function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),.03);
+  if(moving){
+   velocity.y-=19.5*dt;
+   ball.position.addScaledVector(velocity,dt);
+   if(ball.position.y<.5){
+    ball.position.y=.5;velocity.y*=-.2;
+    velocity.x*=.83;velocity.z*=.83;
+    if(Math.abs(velocity.y)<1.4)velocity.y=0;
+    if(Math.abs(velocity.x)+Math.abs(velocity.z)<1.3){
+     moving=false;velocity.set(0,0,0);club.rotation.set(0,0,-.55);
+     message.textContent=Math.abs(ball.position.z+96)<9?'ON THE GREEN!':'SHOT COMPLETE';
+    }
+   }
+   ball.rotation.x+=velocity.z*dt*.5;
+   ball.rotation.z-=velocity.x*dt*.5;
+   ballMark.position.set(ball.position.x,.04,ball.position.z);
+   document.getElementById('dist').textContent=Math.round(Math.hypot(ball.position.x,ball.position.z+96))+' m';
+  }
+  const target=new THREE3.Vector3(ball.position.x*.35,8.5,ball.position.z+17);
+  camera.position.lerp(target,.07);
+  camera.lookAt(ball.position.x*.25,1.2,ball.position.z-12);
+  flag.rotation.y=Math.sin(performance.now()*.0015)*.08;
+  renderer.render(scene,camera);
+ }
+ function resize(){
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
+ }
+ addEventListener('resize',resize);
+ loading.classList.add('hide');
+ animate();
 })();
 </script>
 </body>
